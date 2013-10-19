@@ -113,6 +113,19 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
          *                               order for convenience.
          */
         void onDismiss(ListView listView, int[] reverseSortedPositions);
+
+        /**
+         * Called when item is moved horizontally
+         * @param deltaX	Relative delta of movement - negative to left, positive to right
+         * @param position	Item position in list
+         */
+		void onItemMove(float deltaX, int position);
+
+		/**
+		 * Called when user releases his finger
+		 * @param postition	Item position in list
+		 */
+		void onActionUp(int position);
     }
 
     /**
@@ -175,7 +188,7 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
                 if (mPaused) {
                     return false;
                 }
-
+                
                 // TODO: ensure this is a finger, and set a flag
 
                 // Find the child view that was touched (perform a hit test)
@@ -212,7 +225,9 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
                 if (mVelocityTracker == null) {
                     break;
                 }
-
+                
+                mCallbacks.onActionUp(mDownPosition);
+                
                 float deltaX = motionEvent.getRawX() - mDownX;
                 mVelocityTracker.addMovement(motionEvent);
                 mVelocityTracker.computeCurrentVelocity(1000);
@@ -272,6 +287,8 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
                 if (Math.abs(deltaX) > mSlop) {
                     mSwiping = true;
                     mListView.requestDisallowInterceptTouchEvent(true);
+                    
+                    mCallbacks.onItemMove(deltaX, mDownPosition);
 
                     // Cancel ListView's touch (un-highlighting the item)
                     MotionEvent cancelEvent = MotionEvent.obtain(motionEvent);

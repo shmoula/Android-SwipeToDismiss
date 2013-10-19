@@ -16,101 +16,161 @@
 
 package com.example.android.swipedismiss;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.app.ListActivity;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
+import android.widget.RelativeLayout.LayoutParams;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 public class MainActivity extends ListActivity {
-    ArrayAdapter<String> mAdapter;
+	private static final int LIST_TOP_OFFSET = 0;  // offest in px, when list is not at the top of the screen
+	
+	private SwipableListAdapter mAdapter;
+	private RelativeLayout rlRootLayout;
+	
+	private int iconSize = 80;          // predefined value, which is updated at the runtime - height of list item
+	private int layoutWidth;			// actual width of the screen in px
 
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+	private ImageView ivTray;			// View on left side and its parameters
+	private LayoutParams trayParams;
 
-        // Set up ListView example
-        String[] items = new String[20];
-        for (int i = 0; i < items.length; i++) {
-            items[i] = "Item " + (i + 1);
-        }
+	private ImageView ivRil;			// View on right side and its parameters
+	private LayoutParams rilParams;
 
-        mAdapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_list_item_1,
-                android.R.id.text1,
-                new ArrayList<String>(Arrays.asList(items)));
-        setListAdapter(mAdapter);
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
 
-        ListView listView = getListView();
-        // Create a ListView-specific touch listener. ListViews are given special treatment because
-        // by default they handle touches for their list items... i.e. they're in charge of drawing
-        // the pressed state (the list selector), handling list item clicks, etc.
-        SwipeDismissListViewTouchListener touchListener =
-                new SwipeDismissListViewTouchListener(
-                        listView,
-                        new SwipeDismissListViewTouchListener.DismissCallbacks() {
-                            @Override
-                            public boolean canDismiss(int position) {
-                                return true;
-                            }
+		rlRootLayout = (RelativeLayout) findViewById(R.id.root_layout);
 
-                            @Override
-                            public void onDismiss(ListView listView, int[] reverseSortedPositions) {
-                                for (int position : reverseSortedPositions) {
-                                    mAdapter.remove(mAdapter.getItem(position));
-                                }
-                                mAdapter.notifyDataSetChanged();
-                            }
-                        });
-        listView.setOnTouchListener(touchListener);
-        // Setting this scroll listener is required to ensure that during ListView scrolling,
-        // we don't look for swipes.
-        listView.setOnScrollListener(touchListener.makeScrollListener());
+		// simple list stuffing
+		List<RowItem> items = new ArrayList<RowItem>();
+		for (int i = 0; i < 20; i++) {
+			RowItem item = new RowItem();
+			item.setTextContent("Item " + (i + 1));
+			items.add(item);
+		}
+		
+		mAdapter = new SwipableListAdapter(this, items);
+		setListAdapter(mAdapter);
 
-        // Set up normal ViewGroup example
-        final ViewGroup dismissableContainer = (ViewGroup) findViewById(R.id.dismissable_container);
-        for (int i = 0; i < items.length; i++) {
-            final Button dismissableButton = new Button(this);
-            dismissableButton.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            dismissableButton.setText("Button " + (i + 1));
-            dismissableButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    Toast.makeText(MainActivity.this,
-                            "Clicked " + ((Button) view).getText(),
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
-            // Create a generic swipe-to-dismiss touch listener.
-            dismissableButton.setOnTouchListener(new SwipeDismissTouchListener(
-                    dismissableButton,
-                    null,
-                    new SwipeDismissTouchListener.DismissCallbacks() {
-                        @Override
-                        public boolean canDismiss(Object token) {
-                            return true;
-                        }
+		// ImageView for the left side
+		ivTray = createImageView(Color.RED);
+		trayParams = new RelativeLayout.LayoutParams(iconSize, iconSize);
+		trayParams.leftMargin = 0;
+		rlRootLayout.addView(ivTray, trayParams);
 
-                        @Override
-                        public void onDismiss(View view, Object token) {
-                            dismissableContainer.removeView(dismissableButton);
-                        }
-                    }));
-            dismissableContainer.addView(dismissableButton);
-        }
-    }
+		// ImageView for the right side
+		ivRil = createImageView(Color.GREEN);
+		rilParams = new RelativeLayout.LayoutParams(iconSize, iconSize);
+		rlRootLayout.addView(ivRil, rilParams);
 
-    @Override
-    protected void onListItemClick(ListView listView, View view, int position, long id) {
-        Toast.makeText(this,
-                "Clicked " + getListAdapter().getItem(position).toString(),
-                Toast.LENGTH_SHORT).show();
-    }
+		ListView listView = getListView();
+
+		// observer for getting actual screen size
+		rlRootLayout.getViewTreeObserver().addOnGlobalLayoutListener(new OnGlobalLayoutListener() {
+			@Override
+			public void onGlobalLayout() {
+				layoutWidth = rlRootLayout.getWidth();
+			}
+		});
+
+		// Create a ListView-specific touch listener. ListViews are given
+		// special treatment because
+		// by default they handle touches for their list items... i.e. they're
+		// in charge of drawing
+		// the pressed state (the list selector), handling list item clicks,
+		// etc.
+		SwipeDismissListViewTouchListener touchListener = new SwipeDismissListViewTouchListener(
+				listView,
+				new SwipeDismissListViewTouchListener.DismissCallbacks() {
+					@Override
+					public boolean canDismiss(int position) {
+						return true;
+					}
+
+					@Override
+					public void onDismiss(ListView listView, int[] reverseSortedPositions) {
+						for (int position : reverseSortedPositions) {
+							mAdapter.remove(mAdapter.getItem(position));
+						}
+						mAdapter.notifyDataSetChanged();
+					}
+
+					@Override
+					public void onItemMove(float deltaX, int position) {
+						int itemTop = mAdapter.getVerticalItemLocationOnScreen(position) + LIST_TOP_OFFSET;
+						iconSize = mAdapter.getItemHeight();
+
+						// consideration which item to show
+						// TODO: alpha based on swipe length
+						if (deltaX < 0)
+							showTrayIcon(itemTop, iconSize);
+						else if (deltaX > 0)
+							showRilIcon(itemTop, iconSize);
+					}
+
+					@Override
+					public void onActionUp(int position) {
+						ivTray.setVisibility(View.GONE);
+						ivRil.setVisibility(View.GONE);
+					}
+				});
+		
+		listView.setOnTouchListener(touchListener);
+
+		// Setting this scroll listener is required to ensure that during
+		// ListView scrolling, we don't look for swipes.
+		listView.setOnScrollListener(touchListener.makeScrollListener());
+	}
+
+	/**
+	 * Creates view filled with color
+	 * @param color
+	 * @return
+	 */
+	private ImageView createImageView(int color) {
+		ImageView iv = new ImageView(this);
+
+		iv.setBackgroundColor(color);
+		iv.setVisibility(View.GONE);
+
+		return iv;
+	}
+
+	/**
+	 * Shows icon on the left side
+	 * @param relativeY vertical position in px
+	 * @param iconSize
+	 */
+	private void showTrayIcon(int relativeY, int iconSize) {
+		ivTray.setVisibility(View.VISIBLE);
+		ivRil.setVisibility(View.GONE);
+		trayParams.topMargin = relativeY - iconSize/2;
+	}
+
+	/**
+	 * Shows icon on the right side
+	 * @param relativeY vertical positoin in px
+	 * @param iconSize
+	 */
+	private void showRilIcon(int relativeY, int iconSize) {
+		ivRil.setVisibility(View.VISIBLE);
+		ivTray.setVisibility(View.GONE);
+		rilParams.leftMargin = layoutWidth - iconSize;
+		rilParams.topMargin = relativeY - iconSize/2;
+	}
+
+	@Override
+	protected void onListItemClick(ListView listView, View view, int position, long id) {
+		Toast.makeText(this, "Clicked " + getListAdapter().getItem(position).toString(), Toast.LENGTH_SHORT).show();
+	}
 }
